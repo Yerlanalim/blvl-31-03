@@ -14,6 +14,9 @@ import {
 } from '@/lib/services/progress-service';
 import { Level, UserProgress } from '@/types';
 
+// Constants for cache duration 
+const PROGRESS_STALE_TIME = 1000 * 60; // 1 minute for user progress (more dynamic)
+
 /**
  * Основной хук для работы с прогрессом пользователя
  * @param userId ID пользователя (опционально, если не передан, использует текущего пользователя)
@@ -55,7 +58,7 @@ export const useProgress = (userId?: string) => {
       return userProgress;
     },
     enabled: !!effectiveUserId && !loading,
-    staleTime: 1000 * 60, // 1 минута кеширования
+    staleTime: PROGRESS_STALE_TIME,
   });
 
   // Вспомогательные функции для проверки состояний
@@ -154,8 +157,19 @@ export const useMarkVideoWatched = (userId?: string) => {
       }
       return markVideoWatched(effectiveUserId, videoId);
     },
-    onSuccess: () => {
-      // Инвалидируем кэш прогресса пользователя
+    onSuccess: (_, videoId) => {
+      // Оптимистическое обновление кеша прогресса
+      queryClient.setQueryData(['userProgress', effectiveUserId], (oldData: UserProgress | undefined) => {
+        if (!oldData) return undefined;
+        return {
+          ...oldData,
+          watchedVideoIds: oldData.watchedVideoIds.includes(videoId) 
+            ? oldData.watchedVideoIds 
+            : [...oldData.watchedVideoIds, videoId]
+        };
+      });
+      
+      // Инвалидируем кэш прогресса пользователя в фоне
       queryClient.invalidateQueries({ queryKey: ['userProgress', effectiveUserId] });
       
       // Показываем уведомление об успехе
@@ -199,8 +213,19 @@ export const useMarkTestCompleted = (userId?: string) => {
       }
       return markTestCompleted(effectiveUserId, testId);
     },
-    onSuccess: () => {
-      // Инвалидируем кэш прогресса пользователя
+    onSuccess: (_, testId) => {
+      // Оптимистическое обновление кеша прогресса
+      queryClient.setQueryData(['userProgress', effectiveUserId], (oldData: UserProgress | undefined) => {
+        if (!oldData) return undefined;
+        return {
+          ...oldData,
+          completedTestIds: oldData.completedTestIds.includes(testId) 
+            ? oldData.completedTestIds 
+            : [...oldData.completedTestIds, testId]
+        };
+      });
+      
+      // Инвалидируем кэш прогресса пользователя в фоне
       queryClient.invalidateQueries({ queryKey: ['userProgress', effectiveUserId] });
       
       // Показываем уведомление об успехе
@@ -244,8 +269,19 @@ export const useMarkArtifactDownloaded = (userId?: string) => {
       }
       return markArtifactDownloaded(effectiveUserId, artifactId);
     },
-    onSuccess: () => {
-      // Инвалидируем кэш прогресса пользователя
+    onSuccess: (_, artifactId) => {
+      // Оптимистическое обновление кеша прогресса
+      queryClient.setQueryData(['userProgress', effectiveUserId], (oldData: UserProgress | undefined) => {
+        if (!oldData) return undefined;
+        return {
+          ...oldData,
+          downloadedArtifactIds: oldData.downloadedArtifactIds.includes(artifactId) 
+            ? oldData.downloadedArtifactIds 
+            : [...oldData.downloadedArtifactIds, artifactId]
+        };
+      });
+      
+      // Инвалидируем кэш прогресса пользователя в фоне
       queryClient.invalidateQueries({ queryKey: ['userProgress', effectiveUserId] });
       
       // Инвалидируем также кэш артефактов, т.к. увеличивается счетчик скачиваний
@@ -292,9 +328,22 @@ export const useCompleteLevel = (userId?: string) => {
       }
       return completeLevel(effectiveUserId, levelId, nextLevelId);
     },
-    onSuccess: () => {
-      // Инвалидируем кэш прогресса пользователя
+    onSuccess: ({ levelId, nextLevelId }) => {
+      // Оптимистическое обновление кеша прогресса
+      queryClient.setQueryData(['userProgress', effectiveUserId], (oldData: UserProgress | undefined) => {
+        if (!oldData) return undefined;
+        return {
+          ...oldData,
+          completedLevelIds: oldData.completedLevelIds.includes(levelId) 
+            ? oldData.completedLevelIds 
+            : [...oldData.completedLevelIds, levelId],
+          currentLevelId: nextLevelId
+        };
+      });
+      
+      // Инвалидируем кэш прогресса пользователя и уровней со статусом
       queryClient.invalidateQueries({ queryKey: ['userProgress', effectiveUserId] });
+      queryClient.invalidateQueries({ queryKey: ['levelsWithStatus', effectiveUserId] });
       
       // Показываем уведомление об успехе
       toast.success('Уровень успешно завершен!');

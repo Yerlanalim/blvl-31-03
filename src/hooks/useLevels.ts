@@ -12,6 +12,11 @@ import {
 } from '@/lib/services/level-service';
 import { Level, LevelWithStatus } from '@/types';
 
+// Constants for cache duration 
+const STATIC_DATA_STALE_TIME = 1000 * 60 * 30; // 30 minutes for static content like levels
+const STANDARD_STALE_TIME = 1000 * 60 * 5;     // 5 minutes for standard data
+const LEVEL_DETAIL_STALE_TIME = 1000 * 60 * 10; // 10 minutes for level details
+
 /**
  * Хук для получения списка всех уровней
  * @returns Объект с данными о всех уровнях и состоянием запроса
@@ -33,7 +38,7 @@ export const useLevels = () => {
         throw error;
       }
     },
-    staleTime: 1000 * 60 * 5, // 5 минут кеширования
+    staleTime: STATIC_DATA_STALE_TIME, // Levels are static content, rarely change
   });
 
   return {
@@ -67,7 +72,7 @@ export const useLevel = (levelId: string) => {
       }
     },
     enabled: !!levelId, // Запрос выполняется только при наличии levelId
-    staleTime: 1000 * 60 * 5, // 5 минут кеширования
+    staleTime: LEVEL_DETAIL_STALE_TIME, // Level details change infrequently
   });
 
   return {
@@ -106,7 +111,7 @@ export const useLevelsWithStatus = () => {
       }
     },
     enabled: !!progress && !isProgressLoading, // Запрос выполняется только при наличии прогресса
-    staleTime: 1000 * 60 * 5, // 5 минут кеширования
+    staleTime: STANDARD_STALE_TIME, // Standard stale time as this depends on user progress which can change
   });
 
   return {
@@ -149,7 +154,7 @@ export const useNextLevel = (currentLevelId: string) => {
       }
     },
     enabled: !!currentLevelId, // Запрос выполняется только при наличии currentLevelId
-    staleTime: 1000 * 60 * 5, // 5 минут кеширования
+    staleTime: LEVEL_DETAIL_STALE_TIME, // Level relationships rarely change
   });
 
   return {

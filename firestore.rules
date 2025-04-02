@@ -1,41 +1,102 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidUser() {
+      let requiredFields = ['email', 'displayName', 'photoURL', 'createdAt', 'settings', 'role'];
+      let allFieldsPresent = requiredFields.hasAll(request.resource.data.keys());
+      
+      let isValidRole = request.resource.data.role == 'user' || 
+                        (request.resource.data.role == 'admin' && isAdmin());
+                        
+      let isValidSettings = request.resource.data.settings.theme in ['light', 'dark', 'system'];
+      
+      return allFieldsPresent && isValidRole && isValidSettings;
+    }
+    
     // Default: deny all access
     match /{document=**} {
       allow read, write: if false;
     }
     
-    // Allow authenticated user to read/write their own user data
+    // Users collection
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser();
+      allow update: if isSignedIn() && (
+        // User can update their own profile but can't change their role
+        (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) ||
+        // Admin can update any profile including role
+        isAdmin()
+      );
+      allow delete: if isAdmin();
     }
     
-    // Allow authenticated user to read/write their own progress data
+    // UserProgress collection
     match /userProgress/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
     }
     
-    // Allow authenticated users to read levels, artifacts, and faq
+    // Levels collection
     match /levels/{levelId} {
-      allow read: if request.auth != null;
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
     
+    // Artifacts collection
     match /artifacts/{artifactId} {
-      allow read: if request.auth != null;
+      allow read: if isSignedIn();
       
-      // Prevent direct updating of downloadCount by users
-      allow write: if request.auth != null && 
-                      !request.resource.data.diff(resource.data).affectedKeys().hasAny(['downloadCount']);
+      // Prevent direct updating of downloadCount by regular users
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+      
+      // Allow incrementing downloadCount only
+      allow update: if isSignedIn() && 
+                      !isAdmin() &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['downloadCount']) &&
+                      request.resource.data.downloadCount == resource.data.downloadCount + 1;
     }
     
+    // FAQ collection
     match /faq/{faqId} {
-      allow read: if request.auth != null;
+      allow read: if true; // Public read access
+      allow create, update, delete: if isAdmin();
     }
     
-    // Allow users to write to their own chat messages
-    match /chats/{userId}/messages/{messageId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Chats collection
+    match /chats/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create, update, delete: if isSignedIn() && (isOwner(userId) || isAdmin());
+      
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+        allow create: if isSignedIn() && (isOwner(userId) || isAdmin());
+        
+        // Validate message format
+        allow create: if isSignedIn() && 
+                        (isOwner(userId) || isAdmin()) &&
+                        request.resource.data.keys().hasAll(['role', 'content', 'timestamp']) &&
+                        request.resource.data.role in ['user', 'assistant', 'system'];
+                        
+        allow update, delete: if isSignedIn() && isAdmin();
+      }
     }
   }
 } 

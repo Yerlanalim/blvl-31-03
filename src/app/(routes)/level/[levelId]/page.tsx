@@ -1,9 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useLevel } from '@/hooks/useLevels';
-import { useProgress, useCompleteLevel, useMarkVideoWatched, useMarkTestCompleted, useMarkArtifactDownloaded } from '@/hooks/useProgress';
+import { 
+  useProgress, 
+  useCompleteLevel,
+  useMarkVideoWatched,
+  useMarkTestCompleted,
+  useMarkArtifactDownloaded 
+} from '@/hooks/useProgress';
 import { useNextLevel } from '@/hooks/useLevels';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +20,45 @@ import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { VideoSection, TestSection, ArtifactSection, CompleteLevelButton, CompletionDialog } from '@/components/features/Level';
+import { CompleteLevelButton, CompletionDialog } from '@/components/features/Level';
+import { DefaultLoadingSection } from '@/lib/utils/dynamic-import';
+
+// Dynamically import heavy components
+const VideoSection = lazy(() => import('@/components/features/Level/VideoSection'));
+const TestSection = lazy(() => import('@/components/features/Level/TestSection'));
+const ArtifactSection = lazy(() => import('@/components/features/Level/ArtifactSection'));
+
+// Loading components for each section
+const VideoSectionLoading = () => (
+  <div className="space-y-4">
+    <Skeleton className="h-10 w-full max-w-md" />
+    <div className="space-y-4">
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-24 w-full" />
+    </div>
+  </div>
+);
+
+const TestSectionLoading = () => (
+  <div className="space-y-4">
+    <Skeleton className="h-10 w-full max-w-md" />
+    <div className="space-y-4">
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-32 w-full" />
+    </div>
+  </div>
+);
+
+const ArtifactSectionLoading = () => (
+  <div className="space-y-4">
+    <Skeleton className="h-10 w-full max-w-md" />
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-40 w-full" />
+    </div>
+  </div>
+);
 
 export default function LevelDetailPage() {
   const params = useParams();
@@ -23,15 +67,14 @@ export default function LevelDetailPage() {
   
   // Состояние для диалогового окна завершения уровня
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  // Состояние для активной вкладки
+  const [activeTab, setActiveTab] = useState('videos');
   
   // Получаем данные об уровне и прогрессе
   const { level, isLoading: isLevelLoading, error: levelError } = useLevel(levelId);
   const { 
     progress, 
     isLoading: isProgressLoading, 
-    isVideoWatched, 
-    isTestCompleted, 
-    isArtifactDownloaded,
     canCompleteLevelCheck
   } = useProgress();
   const { nextLevel, isLoading: isNextLevelLoading } = useNextLevel(levelId);
@@ -75,7 +118,7 @@ export default function LevelDetailPage() {
       }
     );
   };
-
+  
   // Обработчик отметки видео как просмотренного
   const handleMarkVideoWatched = (videoId: string) => {
     if (isMarkingVideoWatched) return;
@@ -116,6 +159,23 @@ export default function LevelDetailPage() {
         toast.error(`Ошибка при скачивании артефакта: ${(error as Error).message}`);
       }
     });
+  };
+
+  // Обработчик изменения вкладки
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+
+  // Предварительная загрузка других разделов при наведении на табы
+  const prefetchOtherSections = (tabName: string) => {
+    // Only prefetch if not already active
+    if (tabName !== activeTab) {
+      // This will trigger the lazy loading of the component
+      // The actual implementation can be more sophisticated
+      if (tabName === 'videos') import('@/components/features/Level/VideoSection');
+      if (tabName === 'tests') import('@/components/features/Level/TestSection');
+      if (tabName === 'artifacts') import('@/components/features/Level/ArtifactSection');
+    }
   };
 
   return (
@@ -164,23 +224,36 @@ export default function LevelDetailPage() {
 
         {/* Содержимое уровня */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Skeleton className="h-40" />
-            <Skeleton className="h-40" />
-            <Skeleton className="h-40" />
-          </div>
+          <DefaultLoadingSection />
         ) : level ? (
-          <Tabs defaultValue="videos" className="w-full">
+          <Tabs 
+            defaultValue="videos" 
+            className="w-full"
+            value={activeTab}
+            onValueChange={handleTabChange}
+          >
             <TabsList className="mb-4">
-              <TabsTrigger value="videos" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="videos" 
+                className="flex items-center gap-2"
+                onMouseEnter={() => prefetchOtherSections('videos')}
+              >
                 <Video className="h-4 w-4" />
                 <span>Видео ({level.videoContent.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="tests" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="tests" 
+                className="flex items-center gap-2"
+                onMouseEnter={() => prefetchOtherSections('tests')}
+              >
                 <FileText className="h-4 w-4" />
                 <span>Тесты ({level.tests.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="artifacts" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="artifacts" 
+                className="flex items-center gap-2"
+                onMouseEnter={() => prefetchOtherSections('artifacts')}
+              >
                 <Download className="h-4 w-4" />
                 <span>Материалы ({level.relatedArtifactIds.length})</span>
               </TabsTrigger>
@@ -188,32 +261,38 @@ export default function LevelDetailPage() {
 
             {/* Секция видео */}
             <TabsContent value="videos">
-              <VideoSection
-                videos={level.videoContent}
-                watchedVideoIds={progress?.watchedVideoIds || []}
-                onVideoWatch={handleMarkVideoWatched}
-                isMarkingWatched={isMarkingVideoWatched}
-              />
+              <Suspense fallback={<VideoSectionLoading />}>
+                <VideoSection
+                  videos={level.videoContent}
+                  watchedVideoIds={progress?.watchedVideoIds || []}
+                  onVideoWatch={handleMarkVideoWatched}
+                  isMarkingWatched={isMarkingVideoWatched}
+                />
+              </Suspense>
             </TabsContent>
 
             {/* Секция тестов */}
             <TabsContent value="tests">
-              <TestSection
-                tests={level.tests}
-                completedTestIds={progress?.completedTestIds || []}
-                onTestComplete={handleMarkTestCompleted}
-                isMarkingCompleted={isMarkingTestCompleted}
-              />
+              <Suspense fallback={<TestSectionLoading />}>
+                <TestSection
+                  tests={level.tests}
+                  completedTestIds={progress?.completedTestIds || []}
+                  onTestComplete={handleMarkTestCompleted}
+                  isMarkingCompleted={isMarkingTestCompleted}
+                />
+              </Suspense>
             </TabsContent>
 
             {/* Секция артефактов */}
             <TabsContent value="artifacts">
-              <ArtifactSection
-                artifactIds={level.relatedArtifactIds}
-                downloadedArtifactIds={progress?.downloadedArtifactIds || []}
-                onArtifactDownload={handleMarkArtifactDownloaded}
-                isDownloading={isMarkingArtifactDownloaded}
-              />
+              <Suspense fallback={<ArtifactSectionLoading />}>
+                <ArtifactSection
+                  artifactIds={level.relatedArtifactIds}
+                  downloadedArtifactIds={progress?.downloadedArtifactIds || []}
+                  onArtifactDownload={handleMarkArtifactDownloaded}
+                  isDownloading={isMarkingArtifactDownloaded}
+                />
+              </Suspense>
             </TabsContent>
           </Tabs>
         ) : null}
