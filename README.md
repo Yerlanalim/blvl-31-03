@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BizLevel
 
-## Getting Started
+BizLevel — это веб-приложение, которое помогает предпринимателям и руководителям повышать бизнес-навыки через короткие видео, тесты и практические артефакты.
 
-First, run the development server:
+## Технологический стек
 
+- **Фреймворк**: Next.js 14+ (с App Router)
+- **Язык**: TypeScript
+- **Стилизация**: Tailwind CSS
+- **UI Компоненты**: shadcn/ui
+- **Аутентификация**: Firebase Authentication
+- **База данных**: Firebase Firestore
+- **Хранилище файлов**: Firebase Storage
+- **Управление состоянием**: React Query (@tanstack/react-query)
+- **Управление формами**: React Hook Form + Zod
+- **Обратная связь**: Toast-уведомления (sonner)
+- **AI Ассистент**: OpenAI API
+
+## Начало работы
+
+### Установка
+
+1. Клонировать репозиторий:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd bizlevel
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Установить зависимости:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Настройка переменных окружения:
+   - Создайте файл `.env.local` в корне проекта (или скопируйте `.env.example` если он доступен)
+   - Добавьте необходимые переменные окружения:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+# Firebase Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
 
-## Learn More
+# OpenAI Configuration (для функционала чата с AI)
+OPENAI_API_KEY=your_openai_api_key
+```
 
-To learn more about Next.js, take a look at the following resources:
+> **Важно**: Ключ API OpenAI требуется для работы функционала чата с AI. Получите ключ в [панели управления OpenAI](https://platform.openai.com/account/api-keys) и добавьте его в `.env.local`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Запустить сервер для разработки:
+```bash
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Откройте [http://localhost:3000](http://localhost:3000) в браузере для просмотра проекта.
 
-## Deploy on Vercel
+## Архитектура
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+BizLevel построен вокруг концепции последовательного прохождения уровней, где каждый уровень включает в себя:
+- Короткие видеоуроки
+- Интерактивные тесты
+- Скачиваемые материалы (артефакты)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Основные разделы приложения:
+- **Карта уровней**: визуализация прогресса пользователя
+- **Страница уровня**: видео, тесты и материалы для конкретного уровня
+- **Артефакты**: доступ ко всем скачиваемым материалам
+- **Чат с AI**: интерактивный помощник на основе OpenAI
+- **Профиль и настройки**: управление аккаунтом пользователя
+
+## Лицензия
+
+[MIT](LICENSE)
