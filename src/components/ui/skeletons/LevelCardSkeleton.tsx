@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 
 const LevelCardSkeleton: React.FC = () => {
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden" data-testid="skeleton">
       <div className="relative h-40 w-full">
         <Skeleton className="h-full w-full" />
       </div>

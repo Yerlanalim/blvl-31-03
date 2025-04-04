@@ -7,6 +7,7 @@ import {
   markArtifactDownloaded,
   completeLevel
 } from '../progress-service';
+import * as progressService from '../progress-service';
 import * as FirestoreModule from '@/lib/firebase/firestore';
 import * as LevelService from '../level-service';
 import { SkillType } from '@/types';
@@ -141,6 +142,8 @@ describe('progress-service', () => {
 
   describe('completeLevel', () => {
     it('should complete level and update current level to next level', async () => {
+      // Установка моков перед выполнением теста
+      vi.mocked(FirestoreModule.getDocumentById).mockResolvedValue(mockUserProgress);
       vi.mocked(LevelService.getNextLevelId).mockResolvedValue('level-2');
       vi.mocked(FirestoreModule.updateDocument).mockResolvedValue(undefined);
       
@@ -159,6 +162,8 @@ describe('progress-service', () => {
     });
 
     it('should handle case when there is no next level', async () => {
+      // Установка моков перед выполнением теста
+      vi.mocked(FirestoreModule.getDocumentById).mockResolvedValue(mockUserProgress);
       vi.mocked(LevelService.getNextLevelId).mockResolvedValue(null);
       vi.mocked(FirestoreModule.updateDocument).mockResolvedValue(undefined);
       

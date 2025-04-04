@@ -3,16 +3,30 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
+// Check if we're in a test environment
+const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST;
+
 // Firebase configuration from environment variables
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
+const firebaseConfig = isTest 
+  ? {
+      // Mock config for testing
+      apiKey: 'test-api-key',
+      authDomain: 'test-project.firebaseapp.com',
+      projectId: 'test-project',
+      storageBucket: 'test-project.appspot.com',
+      messagingSenderId: '123456789',
+      appId: '1:123456789:web:abcdef123456789',
+      measurementId: 'G-ABCDEF123',
+    }
+  : {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+      measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+    };
 
 // Initialize Firebase (only once)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -23,7 +37,7 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // Enable offline persistence with unlimited cache size for better performance
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !isTest) {
   enableIndexedDbPersistence(db, { forceOwnership: true })
     .then(() => {
       console.log('Offline persistence enabled for Firestore');

@@ -21,7 +21,11 @@ export const LevelMap: React.FC<LevelMapProps> = ({
     return (
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 py-4">
         {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-20 w-full" />
+          <Skeleton 
+            key={index} 
+            className="h-20 w-full" 
+            data-testid="skeleton"
+          />
         ))}
       </div>
     );

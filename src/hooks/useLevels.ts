@@ -1,166 +1,83 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { useAuth } from './useAuth';
-import { useProgress } from './useProgress';
-import {
-  getLevels,
-  getLevelById,
-  getLevelsWithStatus,
-  getNextLevelId
+import { Level, LevelWithStatus, UserProgress } from '@/types';
+import { 
+  getLevels, 
+  getLevelById, 
+  getLevelsWithStatus, 
+  getNextLevelId 
 } from '@/lib/services/level-service';
-import { Level, LevelWithStatus } from '@/types';
+import { createQueryHook } from '@/lib/utils/hooks/createQueryHook';
+import { useProgress } from './useProgress';
+import { ErrorType } from '@/lib/utils/error-handling/errorHandler';
+import { toast } from 'sonner';
 
-// Constants for cache duration 
-const STATIC_DATA_STALE_TIME = 1000 * 60 * 30; // 30 minutes for static content like levels
-const STANDARD_STALE_TIME = 1000 * 60 * 5;     // 5 minutes for standard data
-const LEVEL_DETAIL_STALE_TIME = 1000 * 60 * 10; // 10 minutes for level details
+// Cache times
+const LEVELS_STALE_TIME = 1000 * 60 * 30; // 30 minutes for static levels data
+const LEVEL_DETAILS_STALE_TIME = 1000 * 60 * 10; // 10 minutes for level details
 
 /**
- * Хук для получения списка всех уровней
- * @returns Объект с данными о всех уровнях и состоянием запроса
+ * Hook for fetching all levels
  */
-export const useLevels = () => {
-  const {
-    data: levels,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ['levels'],
-    queryFn: async () => {
-      try {
-        return await getLevels();
-      } catch (error) {
-        console.error('Ошибка при получении списка уровней:', error);
-        toast.error('Не удалось загрузить список уровней');
-        throw error;
-      }
-    },
-    staleTime: STATIC_DATA_STALE_TIME, // Levels are static content, rarely change
-  });
-
-  return {
-    levels,
-    isLoading,
-    error,
-    refetch,
-  };
-};
+export const useLevels = createQueryHook(
+  () => ['levels'],
+  getLevels,
+  { staleTime: LEVELS_STALE_TIME },
+  ErrorType.Database
+);
 
 /**
- * Хук для получения информации о конкретном уровне по ID
- * @param levelId ID уровня
- * @returns Объект с данными об уровне и состоянием запроса
+ * Hook for fetching a specific level by ID
  */
-export const useLevel = (levelId: string) => {
-  const {
-    data: level,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ['level', levelId],
-    queryFn: async () => {
-      try {
-        return await getLevelById(levelId);
-      } catch (error) {
-        console.error(`Ошибка при получении уровня ${levelId}:`, error);
-        toast.error('Не удалось загрузить информацию об уровне');
-        throw error;
-      }
-    },
-    enabled: !!levelId, // Запрос выполняется только при наличии levelId
-    staleTime: LEVEL_DETAIL_STALE_TIME, // Level details change infrequently
-  });
-
-  return {
-    level,
-    isLoading,
-    error,
-    refetch,
-  };
-};
+export const useLevel = createQueryHook<Level | null, Error, [string]>(
+  (levelId) => ['level', levelId],
+  getLevelById,
+  { staleTime: LEVEL_DETAILS_STALE_TIME },
+  ErrorType.Database
+);
 
 /**
- * Хук для получения списка уровней с их статусом на основе прогресса пользователя
- * @returns Объект с данными о уровнях со статусом и состоянием запроса
+ * Hook for fetching levels with status based on user progress
  */
 export const useLevelsWithStatus = () => {
-  const { user } = useAuth();
-  const { progress, isLoading: isProgressLoading } = useProgress();
+  const { progress } = useProgress();
   
-  const {
-    data: levelsWithStatus,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ['levelsWithStatus', user?.uid],
-    queryFn: async () => {
-      try {
-        if (!progress) {
-          throw new Error('Прогресс пользователя не загружен');
-        }
-        return await getLevelsWithStatus(progress);
-      } catch (error) {
-        console.error('Ошибка при получении уровней со статусом:', error);
-        toast.error('Не удалось загрузить карту уровней');
-        throw error;
-      }
-    },
-    enabled: !!progress && !isProgressLoading, // Запрос выполняется только при наличии прогресса
-    staleTime: STANDARD_STALE_TIME, // Standard stale time as this depends on user progress which can change
-  });
-
+  const levelsQuery = createQueryHook<LevelWithStatus[], Error, [UserProgress | null]>(
+    (userProgress) => ['levelsWithStatus', userProgress?.userId || 'anonymous'],
+    getLevelsWithStatus,
+    { staleTime: LEVELS_STALE_TIME },
+    ErrorType.Database
+  )(progress);
+  
   return {
-    levelsWithStatus,
-    isLoading: isLoading || isProgressLoading,
-    error,
-    refetch,
+    levelsWithStatus: levelsQuery.data,
+    isLoading: levelsQuery.isLoading,
+    error: levelsQuery.error,
+    refetch: levelsQuery.refetch
   };
 };
 
 /**
- * Хук для получения информации о следующем уровне
- * @param currentLevelId ID текущего уровня
- * @returns Объект с данными о следующем уровне и состоянием запроса
+ * Hook for fetching the next level based on current level ID
  */
-export const useNextLevel = (currentLevelId: string) => {
+export const useNextLevel = (currentLevelId: string | undefined) => {
   const {
-    data: nextLevel,
+    data: nextLevelId,
     isLoading,
     error,
-    refetch,
-  } = useQuery({
-    queryKey: ['nextLevel', currentLevelId],
-    queryFn: async () => {
-      try {
-        // Получаем ID следующего уровня
-        const nextLevelId = await getNextLevelId(currentLevelId);
-        
-        // Если следующего уровня нет, возвращаем null
-        if (!nextLevelId) {
-          return null;
-        }
-        
-        // Получаем данные о следующем уровне
-        return await getLevelById(nextLevelId);
-      } catch (error) {
-        console.error(`Ошибка при получении следующего уровня после ${currentLevelId}:`, error);
-        toast.error('Не удалось загрузить информацию о следующем уровне');
-        throw error;
-      }
-    },
-    enabled: !!currentLevelId, // Запрос выполняется только при наличии currentLevelId
-    staleTime: LEVEL_DETAIL_STALE_TIME, // Level relationships rarely change
-  });
-
+  } = createQueryHook<string, Error, [string]>(
+    (levelId) => ['nextLevel', levelId],
+    getNextLevelId,
+    { staleTime: LEVELS_STALE_TIME, enabled: !!currentLevelId },
+    ErrorType.Database
+  )(currentLevelId as string);
+  
+  const nextLevelQuery = useLevel(nextLevelId || '');
+  
   return {
-    nextLevel,
-    isLoading,
-    error,
-    refetch,
+    nextLevelId,
+    nextLevel: nextLevelQuery.data,
+    isLoading: isLoading || nextLevelQuery.isLoading,
+    error: error || nextLevelQuery.error
   };
 }; 

@@ -8,6 +8,7 @@ import {
   ARTIFACTS_COLLECTION
 } from '../firebase/firestore';
 import { UserProgress, Badge, SkillType } from '@/types';
+import { getNextLevelId } from './level-service';
 
 /**
  * Создает начальный прогресс для нового пользователя
@@ -143,10 +144,9 @@ export const markArtifactDownloaded = async (userId: string, artifactId: string)
  * Завершает уровень и устанавливает следующий уровень как текущий
  * @param userId ID пользователя
  * @param levelId ID завершенного уровня
- * @param nextLevelId ID следующего уровня
  * @returns Promise без возвращаемого значения
  */
-export const completeLevel = async (userId: string, levelId: string, nextLevelId: string): Promise<void> => {
+export const completeLevel = async (userId: string, levelId: string): Promise<void> => {
   try {
     // Получаем текущий прогресс пользователя
     const userProgress = await getUserProgress(userId);
@@ -155,21 +155,30 @@ export const completeLevel = async (userId: string, levelId: string, nextLevelId
       throw new Error(`Прогресс пользователя ${userId} не найден`);
     }
     
-    // Обновляем прогресс: добавляем levelId в completedLevelIds и устанавливаем nextLevelId как currentLevelId
-    await updateDocument(USER_PROGRESS_COLLECTION, userId, {
+    // Получаем ID следующего уровня
+    const nextLevelId = await getNextLevelId(levelId);
+    
+    // Обновляем прогресс
+    const updateData: Partial<UserProgress> = {
       completedLevelIds: [...userProgress.completedLevelIds, levelId],
-      currentLevelId: nextLevelId,
       lastUpdated: new Date()
-    });
+    };
+    
+    // Обновляем currentLevelId только если есть следующий уровень
+    if (nextLevelId !== null) {
+      updateData.currentLevelId = nextLevelId;
+    }
+    
+    await updateDocument(USER_PROGRESS_COLLECTION, userId, updateData);
     
     // Проверяем и выдаем значки
     await checkAndAwardBadges(userId, {
       ...userProgress,
       completedLevelIds: [...userProgress.completedLevelIds, levelId],
-      currentLevelId: nextLevelId
+      currentLevelId: nextLevelId || userProgress.currentLevelId
     });
     
-    console.log(`Уровень ${levelId} завершен для пользователя ${userId}, текущий уровень установлен на ${nextLevelId}`);
+    console.log(`Уровень ${levelId} завершен для пользователя ${userId}${nextLevelId ? `, текущий уровень установлен на ${nextLevelId}` : ''}`);
   } catch (error) {
     console.error(`Ошибка при завершении уровня ${levelId}:`, error);
     throw error;

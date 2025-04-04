@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { saveRedirectUrl, createAuthUrlWithRedirect } from '@/lib/utils/auth-redirect';
 import MainLayout from '@/components/layout/MainLayout';
+import { UserActionTracker } from '@/components/analytics/user-action-tracker';
 
 interface RoutesLayoutProps {
   children: React.ReactNode;
@@ -45,6 +46,12 @@ export default function RoutesLayout({ children }: RoutesLayoutProps) {
   return (
     <MainLayout>
       {children}
+      <UserActionTracker 
+        trackLevelActions={true}
+        trackArtifactActions={true}
+        trackChatActions={true}
+        actions={['profile_update', 'feedback_given', 'search']}
+      />
     </MainLayout>
   );
 } 

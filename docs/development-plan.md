@@ -120,7 +120,7 @@
 * [x] **task-10.4-optimize-performance.md**: Оптимизация производительности (React Query caching, code splitting)
 * [x] **task-10.5-finalize-documentation.md**: Финализация `README.md` и другой документации
 * [x] **task-10.6-final-firebase-rules-review.md**: Финальный обзор и тестирование правил безопасности Firebase
-* [ ] **task-10.7-code-refactoring.md**: Рефакторинг кода и устранение технического долга
+* [x] **task-10.7-code-refactoring.md**: Рефакторинг кода и устранение технического долга
 * [ ] **task-10.8-monitoring-setup.md**: Настройка мониторинга производительности и ошибок
 
 ---

@@ -1,4 +1,6 @@
-// Enums
+// Reorganize the types into logical groups
+
+// ======= Enums =======
 export enum SkillType {
   Marketing = 'Marketing',
   Finance = 'Finance',
@@ -14,7 +16,18 @@ export enum LevelStatus {
   Completed = 'Completed'
 }
 
-// User-related types
+export enum UserRole {
+  User = 'user',
+  Admin = 'admin'
+}
+
+export enum QuestionType {
+  MultipleChoice = 'multiple-choice',
+  SingleChoice = 'single-choice',
+  Text = 'text'
+}
+
+// ======= User-related types =======
 export interface User {
   id: string;
   email: string;
@@ -22,17 +35,17 @@ export interface User {
   photoURL: string | null;
   createdAt: Date;
   settings: UserSettings;
-  role: 'user' | 'admin';
+  role: UserRole;
   disabled?: boolean;
 }
 
 export interface UserSettings {
   theme: 'light' | 'dark' | 'system';
   notificationsEnabled: boolean;
-  emailNotificationsEnabled?: boolean; // Optional field
+  emailNotificationsEnabled?: boolean;
 }
 
-// Progress-related types
+// ======= Progress-related types =======
 export interface UserProgress {
   userId: string;
   currentLevelId: string;
@@ -53,7 +66,7 @@ export interface Badge {
   earnedAt: Date;
 }
 
-// Content-related types
+// ======= Level-related types =======
 export interface Level {
   id: string;
   title: string;
@@ -84,7 +97,7 @@ export interface Test {
 export interface Question {
   id: string;
   text: string;
-  type: 'multiple-choice' | 'single-choice' | 'text';
+  type: QuestionType;
   options?: string[];
   correctAnswer: string | string[];
 }
@@ -94,6 +107,11 @@ export interface CompletionCriteria {
   testsRequired: number;
 }
 
+export interface LevelWithStatus extends Level {
+  status: LevelStatus;
+}
+
+// ======= Artifact-related types =======
 export interface Artifact {
   id: string;
   title: string;
@@ -110,15 +128,58 @@ export interface Artifact {
   downloadUrl?: string; // URL for direct download (may be different from fileURL)
 }
 
-// Helper types
-export type LevelWithStatus = Level & { status: LevelStatus };
-
-// Chat-related types
+// ======= Chat-related types =======
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
 }
+
+export interface ChatRequest {
+  messages: Pick<ChatMessage, 'role' | 'content'>[];
+}
+
+export interface ChatResponse {
+  message?: Pick<ChatMessage, 'role' | 'content'>;
+  error?: string;
+}
+
+// ======= FAQ-related types =======
+export interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  order: number;
+}
+
+// ======= Common utility types =======
+export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+export type WithId<T> = T & { id: string };
+
+export type WithoutId<T> = Omit<T, 'id'>;
+
+export type ClientSideOnly<T> = {
+  [P in keyof T]: P extends 'watched' | 'completed' | 'downloaded' ? T[P] : never;
+};
+
+export type ServerSideOnly<T> = Omit<T, keyof ClientSideOnly<T>>;
+
+// Type for API success responses
+export interface ApiSuccessResponse<T> {
+  data: T;
+  success: true;
+}
+
+// Type for API error responses
+export interface ApiErrorResponse {
+  error: string;
+  success: false;
+}
+
+// Combined API response type
+export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 // Note: Additional types will be added as needed for other features in the application 

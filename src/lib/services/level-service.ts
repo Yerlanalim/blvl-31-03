@@ -1,105 +1,104 @@
-import { 
-  getDocumentById, 
-  getDocuments, 
-  LEVELS_COLLECTION 
-} from '../firebase/firestore';
-import { Level, LevelWithStatus, LevelStatus, UserProgress } from '@/types';
-import { orderBy } from 'firebase/firestore';
+/**
+ * Service for managing levels data
+ */
+import { where, orderBy } from 'firebase/firestore';
+import { Level, LevelStatus, LevelWithStatus, UserProgress } from '@/types';
+import { LEVELS_COLLECTION } from '@/lib/firebase/firestore';
+import { createFirebaseService } from '@/lib/utils/firebase/firebaseServiceFactory';
+import { ErrorType } from '@/lib/utils/error-handling/errorHandler';
+
+// Create the base level service using the factory
+const levelService = createFirebaseService<Level>(LEVELS_COLLECTION);
 
 /**
- * Получение списка всех уровней, отсортированных по полю order
- * @returns Promise со списком всех уровней
+ * Get all levels sorted by order
  */
 export const getLevels = async (): Promise<Level[]> => {
-  try {
-    const levels = await getDocuments<Level>(
-      LEVELS_COLLECTION,
-      [orderBy('order', 'asc')]
-    );
-    return levels;
-  } catch (error) {
-    console.error('Ошибка при получении списка уровней:', error);
-    throw error;
-  }
+  return await levelService.getAll([orderBy('order', 'asc')]);
 };
 
 /**
- * Получение информации о конкретном уровне по ID
- * @param levelId ID уровня
- * @returns Promise с данными уровня или null, если уровень не найден
+ * Get a specific level by ID
  */
 export const getLevelById = async (levelId: string): Promise<Level | null> => {
-  try {
-    const level = await getDocumentById<Level>(LEVELS_COLLECTION, levelId);
-    return level;
-  } catch (error) {
-    console.error(`Ошибка при получении уровня ${levelId}:`, error);
-    throw error;
-  }
+  return await levelService.getById(levelId);
 };
 
 /**
- * Получение уровней с их статусом на основе прогресса пользователя
- * @param userProgress Прогресс пользователя
- * @returns Promise со списком уровней с добавленным полем status
+ * Get all levels with their status based on user progress
  */
-export const getLevelsWithStatus = async (userProgress: UserProgress): Promise<LevelWithStatus[]> => {
-  try {
-    const levels = await getLevels();
-    
-    return levels.map(level => {
-      let status: LevelStatus;
-      
-      if (userProgress.completedLevelIds.includes(level.id)) {
-        status = LevelStatus.Completed;
-      } else if (
-        level.id === userProgress.currentLevelId || 
-        level.order < levels.find(l => l.id === userProgress.currentLevelId)?.order || 0
-      ) {
-        status = LevelStatus.Available;
-      } else {
-        status = LevelStatus.Locked;
-      }
-      
-      return {
-        ...level,
-        status
-      };
+export const getLevelsWithStatus = async (userProgress: UserProgress | null): Promise<LevelWithStatus[]> => {
+  const levels = await getLevels();
+  
+  if (!userProgress) {
+    // If no user progress, only the first level is available
+    return levels.map((level, index) => {
+      const status = index === 0 ? LevelStatus.Available : LevelStatus.Locked;
+      return { ...level, status };
     });
-  } catch (error) {
-    console.error('Ошибка при получении уровней со статусом:', error);
-    throw error;
   }
-};
 
-/**
- * Получение ID следующего уровня после текущего
- * @param currentLevelId ID текущего уровня
- * @returns Promise с ID следующего уровня или null, если следующего уровня нет
- */
-export const getNextLevelId = async (currentLevelId: string): Promise<string | null> => {
-  try {
-    const levels = await getLevels();
-    const currentLevel = levels.find(level => level.id === currentLevelId);
+  return levels.map(level => {
+    let status: LevelStatus;
     
-    if (!currentLevel) {
-      throw new Error(`Уровень с ID ${currentLevelId} не найден`);
+    if (userProgress.completedLevelIds.includes(level.id)) {
+      status = LevelStatus.Completed;
+    } else if (userProgress.currentLevelId === level.id) {
+      status = LevelStatus.Available;
+    } else {
+      status = LevelStatus.Locked;
     }
     
-    const nextLevel = levels.find(level => level.order === currentLevel.order + 1);
-    return nextLevel ? nextLevel.id : null;
-  } catch (error) {
-    console.error(`Ошибка при получении ID следующего уровня после ${currentLevelId}:`, error);
-    throw error;
-  }
+    return { ...level, status };
+  });
 };
 
 /**
- * Проверка, завершен ли уровень
- * @param userProgress Прогресс пользователя
- * @param levelId ID уровня
- * @returns true, если уровень завершен, иначе false
+ * Get the next level ID based on current level
  */
-export const isLevelCompleted = (userProgress: UserProgress, levelId: string): boolean => {
+export const getNextLevelId = async (currentLevelId: string): Promise<string | null> => {
+  const levels = await getLevels();
+  
+  const currentLevelIndex = levels.findIndex(level => level.id === currentLevelId);
+  
+  if (currentLevelIndex === -1) {
+    throw new Error(`Уровень с ID ${currentLevelId} не найден.`);
+  }
+  
+  // If current level is the last one, return null (no next level)
+  if (currentLevelIndex >= levels.length - 1) {
+    return null;
+  }
+  
+  // Return next level ID
+  return levels[currentLevelIndex + 1].id;
+};
+
+/**
+ * Check if a level is completed by the user
+ */
+export const isLevelCompleted = (userProgress: UserProgress | null, levelId: string): boolean => {
+  if (!userProgress) return false;
   return userProgress.completedLevelIds.includes(levelId);
+};
+
+/**
+ * Create a new level (admin only)
+ */
+export const createLevel = async (level: Omit<Level, 'id'>): Promise<string> => {
+  return await levelService.create(level);
+};
+
+/**
+ * Update an existing level (admin only)
+ */
+export const updateLevel = async (levelId: string, data: Partial<Level>): Promise<void> => {
+  await levelService.update(levelId, data);
+};
+
+/**
+ * Delete a level (admin only)
+ */
+export const deleteLevel = async (levelId: string): Promise<void> => {
+  await levelService.remove(levelId);
 }; 

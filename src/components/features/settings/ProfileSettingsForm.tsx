@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ProfileFormValues, profileSchema } from '@/lib/zod-schemas';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile, useUpdateUserProfile } from '@/hooks/useSettings';
-import { uploadAvatar } from '@/lib/firebase/storage';
+import { uploadUserAvatar } from '@/lib/firebase/storage';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ export default function ProfileSettingsForm() {
       setAvatarPreview(previewUrl);
       
       // Загружаем файл в Firebase Storage
-      const photoURL = await uploadAvatar(user.uid, file);
+      const photoURL = await uploadUserAvatar(user.uid, file);
       
       // Обновляем форму со ссылкой на новый аватар
       form.setValue('photoURL', photoURL);
